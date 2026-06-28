@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="ne">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>नेपाल नागरिक साथी | Nepal Nagarik Sathi</title>
+<meta name="description" content="नेपालका सरकारी सेवा, वित्तीय जानकारी र नागरिक सहायताको लागि एकीकृत प्लेटफर्म।" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🇳🇵</text></svg>">
+
+<!-- React + ReactDOM (UMD builds, version-pinned) -->
+<script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<!-- Babel standalone, lets us write JSX directly in the browser (no build step) -->
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.25.6/babel.min.js" crossorigin></script>
+<script>
+  // Surface any loading/runtime error directly on the page instead of failing silently.
+  window.addEventListener('error', function (e) {
+    var root = document.getElementById('root');
+    if (root && !root.innerHTML.trim()) {
+      root.innerHTML = '<div style="font-family:monospace;white-space:pre-wrap;padding:2rem;color:#991b1b;background:#fee2e2;">⚠️ Error loading page:\n' +
+        (e.message || e.error || 'Unknown error') + '</div>';
+    }
+  });
+</script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { min-height: 100%; }
+  body { font-family: 'Inter', sans-serif; }
+  @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  @keyframes slideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
+  .svc-card:hover { transform: translateY(-4px); box-shadow: 0 8px 28px rgba(36,87,164,0.16) !important; }
+  .svc-card { transition: transform 0.2s, box-shadow 0.2s; }
+  .nav-btn:hover { background: rgba(36,87,164,0.12) !important; }
+  .form-card:hover { border-color: #2457A4 !important; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/plain" id="app-source">
+const { useState, useEffect, useRef } = React;
+
+// ─── Design Tokens ───────────────────────────────────────────────────────────
+const COLORS = {
+  navy: "#0F1F3D",
+  navyMid: "#1A3260",
+  blue: "#2457A4",
+  blueSoft: "#3B6FD0",
+  saffron: "#F5A623",
+  saffronLight: "#FFD080",
+  crimson: "#C0392B",
+  snow: "#F8FAFF",
+  slate: "#E8EEF8",
+  muted: "#6B7FA3",
+  glass: "rgba(255,255,255,0.08)",
+  glassBorder: "rgba(255,255,255,0.15)",
+};
+
+// ─── Data ─────────────────────────────────────────────────────────────────────
+
+const EMERGENCY = [
+  { label: "पुलिस", number: "100", icon: "🚔", color: "#1A56DB" },
+  { label: "एम्बुलेन्स", number: "102", icon: "🚑", color: "#057A55" },
+  { label: "दमकल", number: "101", icon: "🚒", color: "#E02424" },
+  { label: "महिला हेल्पलाइन", number: "1145", icon: "🛡️", color: "#7E3AF2" },
+  { label: "बाल हेल्पलाइन", number: "1098", icon: "👶", color: "#FF8A4C" },
+  { label: "विपद व्यवस्थापन", number: "1155", icon: "⛑️", color: "#3F83F8" },
+];
+
+const NAV_ITEMS = [
+  { id: "home", label: "गृहपृष्ठ", icon: "🏠" },
+  { id: "services", label: "सरकारी सेवा", icon: "🏛️" },
+  { id: "finance", label: "वित्त", icon: "💰" },
+  { id: "nepse", label: "सेयर बजार", icon: "📈" },
+  { id: "forms", label: "फारम", icon: "📋" },
+  { id: "directory", label: "कार्यालय", icon: "🗂️" },
+  { id: "emergency", label: "आपतकाल", icon: "🚨" },
+  { id: "education", label: "शिक्षा", icon: "🎓" },
+  { id: "chatbot", label: "सहायक", icon: "🤖" },
+];
+
+const SERVICES = [
+  { id: "citizenship", icon: "🪪", title: "नागरिकता", desc: "नागरिकता प्रमाणपत्र लिने प्रक्रिया", category: "पहिचान" },
+  { id: "passport", icon: "📕", title: "राहदानी", desc: "नयाँ/नवीकरण राहदानी प्रक्रिया", category: "पहिचान" },
+  { id: "pan", icon: "🔢", title: "स्थायी लेखा नम्बर", desc: "PAN दर्ता गर्ने तरिका", category: "कर" },
+  { id: "license", icon: "🚗", title: "सवारी चालक अनुमतिपत्र", desc: "नयाँ/नवीकरण लाइसेन्स", category: "यातायात" },
+  { id: "birth", icon: "👶", title: "जन्म दर्ता", desc: "जन्म दर्ताको प्रक्रिया र आवश्यकता", category: "दर्ता" },
+  { id: "marriage", icon: "💍", title: "विवाह दर्ता", desc: "विवाह दर्ताको सम्पूर्ण प्रक्रिया", category: "दर्ता" },
+  { id: "land", icon: "🏔️", title: "जग्गा दर्ता", desc: "जग्गा दर्ता र नामसारी", category: "सम्पत्ति" },
+  { id: "business", icon: "🏪", title: "व्यापार दर्ता", desc: "व्यवसाय दर्ताको प्रक्रिया", category: "व्यापार" },
+  { id: "nid", icon: "💳", title: "राष्ट्रिय परिचयपत्र", desc: "राष्ट्रिय परिचयपत्र बनाउने तरिका", category: "पहिचान" },
+  { id: "police", icon: "📜", title: "प्रहरी प्रमाणपत्र", desc: "चारित्रिक प्रमाणपत्र", category: "दर्ता" },
+  { id: "vehicle", icon: "🚙", title: "सवारी दर्ता", desc: "सवारी दर्ता र नवीकरण", category: "यातायात" },
+  { id: "loksewa", icon: "📝", title: "लोकसेवा", desc: "लोकसेवा आयोगको जानकारी", category: "रोजगार" },
+];
+
+const SERVICE_DETAILS = {
+  citizenship: {
+    title: "नागरिकता प्रमाणपत्र",
+    overview: "नागरिकता प्रमाणपत्र नेपाली नागरिकको प्रमुख पहिचान कागजात हो। यो विभिन्न सरकारी सेवाहरू प्राप्त गर्न अनिवार्य छ।",
+    eligibility: ["नेपाली नागरिक (उमेर १६ वर्ष पुगेको)", "बाबु वा आमाको नागरिकता भएको"],
+    documents: ["बाबु/आमाको नागरिकताको प्रमाणित प्रतिलिपि", "जन्म दर्ता प्रमाणपत्र", "विद्यालय/प्रमाण-पत्रको सक्कल", "वडाको सिफारिस पत्र", "पासपोर्ट साइजको फोटो (२ प्रति)"],
+    fees: "नि:शुल्क (सक्कल नागरिकता) / रु. ५ (प्रमाणित प्रतिलिपि)",
+    time: "सामान्यतः १-३ कार्य दिन",
+    steps: [
+      "वडा कार्यालयमा जाई सिफारिस लिने",
+      "जिल्ला प्रशासन कार्यालयमा निवेदन दिने",
+      "सबै कागजातहरू पेस गर्ने",
+      "कार्यालयले जाँच गरी नागरिकता बनाउने",
+      "तोकिएको मितिमा लिन जाने",
+    ],
+    mistakes: ["कागजातहरू अपुरो ल्याउनु", "वडाको सिफारिस नल्याउनु", "फोटो मापदण्ड नपुगेको"],
+    office: "जिल्ला प्रशासन कार्यालय (आ-आफ्नो जिल्ला)",
+    website: "https://moha.gov.np",
+  },
+  passport: {
+    title: "राहदानी (Passport)",
+    overview: "राहदानी विदेश यात्राको लागि अनिवार्य कागजात हो। नेपालमा राहदानी विभाग, नारायणहिटी, काठमाडौंले जारी गर्छ।",
+    eligibility: ["नेपाली नागरिकता भएको", "उमेर कुनै सीमा छैन (नाबालकको लागि अभिभावक आवश्यक)"],
+    documents: ["नागरिकताको प्रमाणित प्रतिलिपि", "पुरानो राहदानी (नवीकरणको लागि)", "जन्म दर्ता (नाबालकको लागि)", "विवाह प्रमाणपत्र (आवश्यकता अनुसार)", "पासपोर्ट साइजको फोटो"],
+    fees: "रु. ५,०००/- (साधारण ४५ दिन) / रु. १०,०००/- (जरुरी १५ दिन) / रु. १५,०००/- (अत्यावश्यक ३ दिन)",
+    time: "साधारण: ४५ दिन | जरुरी: १५ दिन | अत्यावश्यक: ३ दिन",
+    steps: [
+      "राहदानी विभागको वेबसाइटमा अनलाइन फारम भर्ने",
+      "शुल्क बैंकमा जम्मा गर्ने (भुक्तानी वाउचर राख्ने)",
+      "तोकिएको मिति र समयमा कार्यालय जाने",
+      "बायोमेट्रिक (फोटो, औंठाछाप) दिने",
+      "तोकिएको मितिमा राहदानी लिने",
+    ],
+    mistakes: ["अनलाइन फारममा गलत जानकारी भर्नु", "बैंक भुक्तानी स्लिप नल्याउनु", "मिति र समय ठीक नपुग्नु"],
+    office: "राहदानी विभाग, नारायणहिटी, काठमाडौं / क्षेत्रीय पासपोर्ट कार्यालयहरू",
+    website: "https://www.nepalpassport.gov.np",
+  },
+};
+
+const FINANCE_TOPICS = [
+  { icon: "🏦", title: "बैंक खाता", desc: "बचत, चल्ती, मुद्दती खाता खोल्ने तरिका" },
+  { icon: "📱", title: "मोबाइल बैंकिङ", desc: "eSewa, Khalti, IME Pay प्रयोग गर्ने तरिका" },
+  { icon: "💳", title: "ऋण र EMI", desc: "ऋण लिने प्रक्रिया र EMI गणना" },
+  { icon: "🛡️", title: "बीमा", desc: "जीवन, स्वास्थ्य, सम्पत्ति बीमाको जानकारी" },
+  { icon: "📊", title: "कर (Tax)", desc: "आयकर, मूल्य अभिवृद्धि कर बुझ्ने तरिका" },
+  { icon: "💹", title: "लगानी", desc: "पैसा लगाउने सुरक्षित तरिकाहरू" },
+  { icon: "🏠", title: "गृहकर्जा", desc: "घर किन्न ऋण लिने प्रक्रिया" },
+  { icon: "📈", title: "म्युच्युअल फन्ड", desc: "म्युच्युअल फन्डमा लगानी गर्ने तरिका" },
+];
+
+const NEPSE_TOPICS = [
+  { icon: "📊", title: "NEPSE के हो?", desc: "नेपाल स्टक एक्सचेञ्जको परिचय" },
+  { icon: "📋", title: "IPO", desc: "प्रारम्भिक सार्वजनिक निर्गमनमा कसरी आवेदन गर्ने" },
+  { icon: "💼", title: "Demat खाता", desc: "Demat खाता खोल्ने र MeroShare प्रयोग" },
+  { icon: "🏢", title: "ब्रोकर खाता", desc: "TMS मार्फत सेयर किन्ने र बेच्ने तरिका" },
+  { icon: "💰", title: "लाभांश", desc: "नगद र बोनस लाभांश बुझ्ने तरिका" },
+  { icon: "📉", title: "जोखिम व्यवस्थापन", desc: "सेयर बजारको जोखिम कम गर्ने उपाय" },
+];
+
+const FORMS = [
+  { id: "f1", title: "नागरिकता निवेदन", category: "पहिचान", desc: "नागरिकताको लागि निवेदन फारम", link: "#" },
+  { id: "f2", title: "राहदानी आवेदन", category: "पहिचान", desc: "राहदानीको लागि आवेदन फारम", link: "https://www.nepalpassport.gov.np" },
+  { id: "f3", title: "PAN दर्ता", category: "कर", desc: "स्थायी लेखा नम्बरको लागि फारम", link: "https://www.ird.gov.np" },
+  { id: "f4", title: "जन्म दर्ता फारम", category: "दर्ता", desc: "नवजात शिशुको जन्म दर्ता गर्न", link: "#" },
+  { id: "f5", title: "विवाह दर्ता फारम", category: "दर्ता", desc: "विवाह दर्ताको लागि", link: "#" },
+  { id: "f6", title: "व्यापार दर्ता", category: "व्यापार", desc: "व्यवसाय दर्ताको आवेदन", link: "https://www.ocr.gov.np" },
+];
+
+const CHATBOT_KB = {
+  "नागरिकता": "नागरिकता लिन: १) वडाको सिफारिस, २) बाबु/आमाको नागरिकता, ३) जन्म दर्ता लिएर जिल्ला प्रशासन कार्यालय जानुहोस्। शुल्क नि:शुल्क छ।",
+  "राहदानी": "राहदानीको लागि nepalpassport.gov.np मा अनलाइन आवेदन गर्नुहोस्। शुल्क रु. ५,०००/- (साधारण)। कागजातहरू: नागरिकता, फोटो, र शुल्क वाउचर चाहिन्छ।",
+  "pan": "PAN (स्थायी लेखा नम्बर) को लागि ird.gov.np मा अनलाइन आवेदन गर्न सकिन्छ। व्यापारिक कारोबार गर्नेहरूलाई अनिवार्य छ।",
+  "ipo": "IPO आवेदनको लागि: १) MeroShare खाता खोल्नुहोस्, २) Demat खाता चाहिन्छ, ३) ASBA को माध्यमबाट आवेदन दिनुहोस्। meroshare.cdsc.com.np हेर्नुहोस्।",
+  "demat": "Demat खाता खोल्न: १) CDSC सदस्य ब्रोकर कम्पनीमा जानुहोस्, २) नागरिकता, फोटो, PAN लिएर जानुहोस्, ३) फारम भर्नुहोस्।",
+  "emergency": "आपातकालीन नम्बरहरू: पुलिस: 100, एम्बुलेन्स: 102, दमकल: 101, महिला हेल्पलाइन: 1145, बाल हेल्पलाइन: 1098",
+  "default": "माफ गर्नुहोस्, मलाई यो प्रश्नको जवाफ थाहा छैन। कृपया बाँया तर्फको मेनुबाट सम्बन्धित विषय खोज्नुहोस् वा 'नागरिकता', 'राहदानी', 'IPO', 'Demat' जस्ता शब्दहरू टाइप गर्नुहोस्।",
+};
+
+const OFFICES = [
+  { name: "जिल्ला प्रशासन कार्यालय, काठमाडौं", address: "बाबरमहल, काठमाडौं", phone: "01-4262987", services: "नागरिकता, माइग्रेसन, अन्य प्रशासनिक सेवाहरू", hours: "आ-आ ७:०० - १४:०० (आइतबार - बिहीबार)" },
+  { name: "राहदानी विभाग", address: "नारायणहिटी, काठमाडौं", phone: "01-4416010", services: "राहदानी जारी र नवीकरण", hours: "७:०० - १७:०० (आइतबार - बिहीबार)" },
+  { name: "यातायात व्यवस्था कार्यालय", address: "एकान्तकुना, काठमाडौं", phone: "01-5529299", services: "चालक अनुमतिपत्र, सवारी दर्ता", hours: "१०:०० - १७:०० (आइतबार - शुक्रबार)" },
+  { name: "आन्तरिक राजस्व कार्यालय", address: "काठमाडौं", phone: "01-4415802", services: "PAN दर्ता, कर, VAT", hours: "१०:०० - १७:०० (आइतबार - बिहीबार)" },
+];
+
+const EDUCATION_TOPICS = [
+  { icon: "📚", title: "SEE परीक्षा", desc: "माध्यमिक शिक्षा परीक्षाको तयारी र प्रक्रिया" },
+  { icon: "🏫", title: "+२ भर्ना", desc: "उच्च माध्यमिक विद्यालयमा भर्ना प्रक्रिया" },
+  { icon: "🎓", title: "स्नातक (Bachelor)", desc: "विश्वविद्यालयमा भर्ना र छात्रवृत्ति" },
+  { icon: "🌏", title: "विदेशमा अध्ययन", desc: "बाहिर पढ्न जाने सम्पूर्ण जानकारी" },
+  { icon: "💰", title: "शैक्षिक ऋण", desc: "पढाइको लागि ऋण लिने तरिका" },
+  { icon: "🏆", title: "छात्रवृत्ति", desc: "सरकारी र निजी छात्रवृत्तिहरू" },
+];
+
+const NOTICES = [
+  { title: "लोकसेवा आयोगको विज्ञापन प्रकाशित", date: "२०८१ असार", category: "रोजगार", urgent: true },
+  { title: "राहदानी शुल्क अद्यावधिक", date: "२०८१ जेठ", category: "सूचना", urgent: false },
+  { title: "SEE नतिजा प्रकाशन मिति घोषणा", date: "२०८१ असार", category: "शिक्षा", urgent: true },
+  { title: "नयाँ PAN दर्ता प्रक्रिया सरलीकरण", date: "२०८१ असार", category: "कर", urgent: false },
+];
+
+// ─── Components ───────────────────────────────────────────────────────────────
+
+function MountainSVG({ dark }) {
+  return (
+    <svg viewBox="0 0 1200 300" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", display: "block" }}>
+      <defs>
+        <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={dark ? "#0a1628" : "#1e3a6e"} stopOpacity="0" />
+          <stop offset="100%" stopColor={dark ? "#0a1628" : "#1e3a6e"} stopOpacity="1" />
+        </linearGradient>
+      </defs>
+      <polygon points="0,300 200,120 400,220 600,80 800,180 1000,100 1200,160 1200,300" fill={dark ? "#1a2d5a" : "#2457A4"} opacity="0.4" />
+      <polygon points="0,300 150,170 350,240 550,130 750,200 950,140 1200,190 1200,300" fill={dark ? "#1f3870" : "#2d62c4"} opacity="0.6" />
+      <polygon points="0,300 100,220 280,280 500,160 680,250 900,180 1100,230 1200,200 1200,300" fill={dark ? "#243f80" : "#3572d4"} opacity="0.8" />
+      <polygon points="500,160 540,130 580,150" fill="white" opacity="0.7" />
+      <polygon points="200,120 240,85 280,115" fill="white" opacity="0.5" />
+      <polygon points="600,80 650,45 700,75" fill="white" opacity="0.8" />
+      <polygon points="1000,100 1040,65 1080,90" fill="white" opacity="0.5" />
+    </svg>
+  );
+}
+
+function ServiceDetail({ service, onBack }) {
+  const data = SERVICE_DETAILS[service.id];
+  if (!data) return (
+    <div style={{ padding: "2rem", textAlign: "center" }}>
+      <p style={{ color: "#6B7FA3", fontSize: "1.1rem" }}>यस सेवाको विस्तृत जानकारी छिट्टै थपिनेछ।</p>
+      <button onClick={onBack} style={btnStyle("#2457A4")}>← फिर्ता जानुहोस्</button>
+    </div>
+  );
+  return (
+    <div style={{ padding: "1.5rem", maxWidth: 760, margin: "0 auto" }}>
+      <button onClick={onBack} style={{ ...btnStyle("#6B7FA3"), marginBottom: "1.5rem", fontSize: "0.9rem" }}>← फिर्ता</button>
+      <div style={card()}>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+          <span style={{ fontSize: "2.5rem" }}>{service.icon}</span>
+          <div>
+            <h2 style={{ margin: 0, fontSize: "1.6rem", color: COLORS.navy }}>{data.title}</h2>
+            <span style={badge(COLORS.blueSoft)}>{service.category}</span>
+          </div>
+        </div>
+        <p style={{ color: "#444", lineHeight: 1.7 }}>{data.overview}</p>
+      </div>
+
+      {[
+        { label: "🎯 पात्रता (Eligibility)", items: data.eligibility },
+        { label: "📄 आवश्यक कागजातहरू", items: data.documents },
+        { label: "⚠️ सामान्य गल्तीहरू", items: data.mistakes },
+      ].map(sec => (
+        <div key={sec.label} style={{ ...card(), marginTop: "1rem" }}>
+          <h3 style={sectionTitle()}>{sec.label}</h3>
+          <ul style={{ margin: 0, paddingLeft: "1.5rem", lineHeight: 2 }}>
+            {sec.items.map((item, i) => <li key={i} style={{ color: "#444" }}>{item}</li>)}
+          </ul>
+        </div>
+      ))}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem" }}>
+        <div style={{ ...card(), background: "linear-gradient(135deg,#e8f4fd,#f0f8ff)" }}>
+          <h4 style={{ margin: "0 0 0.5rem", color: COLORS.blue }}>💰 शुल्क</h4>
+          <p style={{ margin: 0, fontWeight: 600, color: COLORS.navy }}>{data.fees}</p>
+        </div>
+        <div style={{ ...card(), background: "linear-gradient(135deg,#fff8e1,#fffde7)" }}>
+          <h4 style={{ margin: "0 0 0.5rem", color: "#b45309" }}>⏱️ समयावधि</h4>
+          <p style={{ margin: 0, fontWeight: 600, color: COLORS.navy }}>{data.time}</p>
+        </div>
+      </div>
+
+      <div style={{ ...card(), marginTop: "1rem" }}>
+        <h3 style={sectionTitle()}>📋 चरणबद्ध प्रक्रिया</h3>
+        {data.steps.map((step, i) => (
+          <div key={i} style={{ display: "flex", gap: "1rem", alignItems: "flex-start", marginBottom: "0.8rem" }}>
+            <div style={{ minWidth: 28, height: 28, borderRadius: "50%", background: COLORS.blue, color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.85rem", fontWeight: 700 }}>{i + 1}</div>
+            <p style={{ margin: 0, color: "#444", lineHeight: 1.6, paddingTop: 4 }}>{step}</p>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ ...card(), marginTop: "1rem", background: "linear-gradient(135deg,#f0fdf4,#dcfce7)" }}>
+        <h3 style={{ ...sectionTitle(), color: "#166534" }}>🏛️ कार्यालय जानकारी</h3>
+        <p style={{ margin: "0 0 0.5rem", color: "#444" }}><strong>कार्यालय:</strong> {data.office}</p>
+        <a href={data.website} target="_blank" rel="noopener noreferrer" style={{ color: COLORS.blue, textDecoration: "none", fontWeight: 600 }}>🌐 आधिकारिक वेबसाइट →</a>
+        <p style={{ margin: "0.5rem 0 0", fontSize: "0.8rem", color: "#6B7FA3" }}>⚠️ शुल्क र प्रक्रिया परिवर्तन हुन सक्छ। आधिकारिक स्रोत जाँच्नुहोस्।</p>
+      </div>
+    </div>
+  );
+}
+
+function Chatbot() {
+  const [messages, setMessages] = useState([
+    { from: "bot", text: "नमस्ते! म नेपाल नागरिक साथी हुँ। तपाईंलाई के मद्दत गर्न सक्छु? नागरिकता, राहदानी, IPO, Demat, आपतकाल जस्ता विषयमा सोध्नुहोस्।" }
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const endRef = useRef(null);
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const getReply = async (text) => {
+    const lower = text.toLowerCase();
+    for (const [key, val] of Object.entries(CHATBOT_KB)) {
+      if (lower.includes(key.toLowerCase())) return val;
+    }
+    // NOTE: There is no live AI backend wired up in this static version.
+    // Plug your own API endpoint here if you want live AI answers for
+    // questions outside the built-in knowledge base below.
+    return CHATBOT_KB.default;
+  };
+
+  const send = async () => {
+    if (!input.trim()) return;
+    const userMsg = input.trim();
+    setInput("");
+    setMessages(m => [...m, { from: "user", text: userMsg }]);
+    setLoading(true);
+    const reply = await getReply(userMsg);
+    setLoading(false);
+    setMessages(m => [...m, { from: "bot", text: reply }]);
+  };
+
+  return (
+    <div style={{ maxWidth: 680, margin: "0 auto", padding: "1.5rem" }}>
+      <div style={{ ...card(), height: 420, overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.75rem", padding: "1.25rem" }}>
+        {messages.map((m, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: m.from === "user" ? "flex-end" : "flex-start" }}>
+            <div style={{
+              maxWidth: "80%", padding: "0.7rem 1rem", borderRadius: m.from === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+              background: m.from === "user" ? `linear-gradient(135deg,${COLORS.blue},${COLORS.blueSoft})` : "#f1f5fb",
+              color: m.from === "user" ? "white" : "#1a1a1a", lineHeight: 1.6, fontSize: "0.95rem"
+            }}>{m.text}</div>
+          </div>
+        ))}
+        {loading && (
+          <div style={{ display: "flex", gap: 6, padding: "0.7rem 1rem", background: "#f1f5fb", borderRadius: "18px 18px 18px 4px", width: 60 }}>
+            {[0, 0.2, 0.4].map((d, i) => (
+              <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.blue, animation: `bounce 1s ${d}s infinite` }} />
+            ))}
+          </div>
+        )}
+        <div ref={endRef} />
+      </div>
+      <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem" }}>
+        <input
+          value={input} onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && send()}
+          placeholder="यहाँ प्रश्न लेख्नुहोस्..."
+          style={{ flex: 1, padding: "0.8rem 1.2rem", borderRadius: 12, border: `1.5px solid ${COLORS.slate}`, fontSize: "0.95rem", outline: "none" }}
+        />
+        <button onClick={send} style={{ ...btnStyle(COLORS.blue), padding: "0.8rem 1.5rem" }}>पठाउनुस् →</button>
+      </div>
+      <p style={{ fontSize: "0.75rem", color: "#6B7FA3", textAlign: "center", marginTop: "0.5rem" }}>
+        ⚠️ यो एक साधारण सहायक हो। महत्त्वपूर्ण निर्णयको लागि आधिकारिक स्रोत प्रयोग गर्नुहोस्।
+      </p>
+    </div>
+  );
+}
+
+// ─── Style Helpers ────────────────────────────────────────────────────────────
+function card(extra = {}) {
+  return { background: "white", borderRadius: 16, padding: "1.25rem", boxShadow: "0 2px 12px rgba(36,87,164,0.08)", border: "1px solid #eef2fb", ...extra };
+}
+function btnStyle(bg) {
+  return { background: bg, color: "white", border: "none", borderRadius: 10, padding: "0.6rem 1.2rem", cursor: "pointer", fontWeight: 600, fontSize: "0.9rem" };
+}
+function sectionTitle() { return { margin: "0 0 0.75rem", fontSize: "1rem", fontWeight: 700, color: COLORS.navy }; }
+function badge(bg) { return { background: bg + "22", color: bg, fontSize: "0.75rem", fontWeight: 700, padding: "2px 10px", borderRadius: 20, marginTop: 4, display: "inline-block" }; }
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
+function NepalNagarikSathi() {
+  const [page, setPage] = useState("home");
+  const [dark, setDark] = useState(false);
+  const [search, setSearch] = useState("");
+  const [selectedService, setSelectedService] = useState(null);
+  const [mobileMenu, setMobileMenu] = useState(false);
+  const [formFilter, setFormFilter] = useState("सबै");
+  const [toast, setToast] = useState(null);
+
+  const bg = dark ? "#0a1628" : COLORS.snow;
+  const textColor = dark ? "#e8f0ff" : COLORS.navy;
+  const cardBg = dark ? "#111e38" : "white";
+  const borderColor = dark ? "#1f3060" : "#eef2fb";
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const filteredServices = SERVICES.filter(s =>
+    s.title.toLowerCase().includes(search.toLowerCase()) ||
+    s.desc.toLowerCase().includes(search.toLowerCase()) ||
+    s.category.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const filteredForms = formFilter === "सबै" ? FORMS : FORMS.filter(f => f.category === formFilter);
+
+  const navTo = (id) => { setPage(id); setMobileMenu(false); setSelectedService(null); };
+
+  // ── Render Page ──
+  const renderPage = () => {
+    if (selectedService && page === "services") {
+      return <ServiceDetail service={selectedService} onBack={() => setSelectedService(null)} />;
+    }
+
+    switch (page) {
+      case "home": return <HomePage />;
+      case "services": return <ServicesPage />;
+      case "finance": return <FinancePage />;
+      case "nepse": return <NepsePage />;
+      case "forms": return <FormsPage />;
+      case "directory": return <DirectoryPage />;
+      case "emergency": return <EmergencyPage />;
+      case "education": return <EducationPage />;
+      case "chatbot": return <Chatbot />;
+      default: return <HomePage />;
+    }
+  };
+
+  // ── Sub-pages ──
+  function HomePage() {
+    return (
+      <div style={{ animation: "fadeIn 0.4s ease" }}>
+        {/* Hero */}
+        <div style={{ background: `linear-gradient(160deg, ${COLORS.navy} 0%, ${COLORS.navyMid} 50%, ${COLORS.blue} 100%)`, color: "white", padding: "3rem 1.5rem 0", position: "relative", overflow: "hidden" }}>
+          <div style={{ textAlign: "center", maxWidth: 680, margin: "0 auto", position: "relative", zIndex: 2 }}>
+            <div style={{ fontSize: "1rem", letterSpacing: "0.15em", color: COLORS.saffronLight, fontWeight: 600, marginBottom: "0.75rem" }}>🇳🇵 NEPAL NAGARIK SATHI</div>
+            <h1 style={{ fontSize: "clamp(1.8rem,4vw,3rem)", fontWeight: 800, lineHeight: 1.2, marginBottom: "1rem" }}>
+              नेपाल नागरिक साथी
+            </h1>
+            <p style={{ fontSize: "1.1rem", color: "#c8d8f8", lineHeight: 1.7, marginBottom: "2rem" }}>
+              सरकारी सेवाहरू, वित्तीय जानकारी, र नागरिक अधिकारको एकै ठाउँमा।<br />
+              सरल भाषामा, तपाईंको लागि।
+            </p>
+            <div style={{ position: "relative", maxWidth: 520, margin: "0 auto 2rem" }}>
+              <span style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", fontSize: "1.2rem" }}>🔍</span>
+              <input
+                value={search} onChange={e => setSearch(e.target.value)}
+                onFocus={() => setPage("services")}
+                placeholder="सेवा खोज्नुहोस्... (नागरिकता, राहदानी, PAN...)"
+                style={{ width: "100%", padding: "1rem 1rem 1rem 3rem", borderRadius: 14, border: "none", fontSize: "1rem", outline: "none", background: "rgba(255,255,255,0.95)", color: "#111", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap", marginBottom: "2.5rem" }}>
+              {["नागरिकता", "राहदानी", "PAN", "IPO", "लाइसेन्स"].map(tag => (
+                <button key={tag} onClick={() => { setSearch(tag); setPage("services"); }}
+                  style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white", padding: "0.4rem 1rem", borderRadius: 20, cursor: "pointer", fontSize: "0.85rem", backdropFilter: "blur(8px)" }}>
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+          <MountainSVG dark={false} />
+        </div>
+
+        {/* Emergency Strip */}
+        <div style={{ background: "#fee2e2", borderBottom: "2px solid #fca5a5", padding: "0.75rem 1.5rem" }}>
+          <div style={{ maxWidth: 960, margin: "0 auto", display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 700, color: "#991b1b", fontSize: "0.9rem" }}>🚨 आपतकालीन नम्बरहरू:</span>
+            {EMERGENCY.map(e => (
+              <a key={e.number} href={`tel:${e.number}`} style={{ textDecoration: "none", fontWeight: 700, color: "#991b1b", fontSize: "0.9rem" }}>
+                {e.icon} {e.label}: <span style={{ color: "#dc2626" }}>{e.number}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+
+        {/* Popular Services */}
+        <div style={{ maxWidth: 960, margin: "0 auto", padding: "2.5rem 1.5rem 0" }}>
+          <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: textColor, marginBottom: "1.25rem" }}>🏛️ लोकप्रिय सरकारी सेवाहरू</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "1rem" }}>
+            {SERVICES.slice(0, 8).map(s => (
+              <div key={s.id} className="svc-card" onClick={() => { setPage("services"); setSelectedService(s); }}
+                style={{ ...card({ background: cardBg, border: `1px solid ${borderColor}` }), cursor: "pointer", textAlign: "center" }}>
+                <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>{s.icon}</div>
+                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: textColor, marginBottom: "0.25rem" }}>{s.title}</div>
+                <div style={{ fontSize: "0.78rem", color: "#6B7FA3" }}>{s.desc}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign: "center", marginTop: "1.25rem" }}>
+            <button onClick={() => setPage("services")} style={btnStyle(COLORS.blue)}>सबै सेवाहरू हेर्नुहोस् →</button>
+          </div>
+        </div>
+
+        {/* Notices */}
+        <div style={{ maxWidth: 960, margin: "0 auto", padding: "2.5rem 1.5rem 0" }}>
+          <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: textColor, marginBottom: "1.25rem" }}>📢 ताजा सूचनाहरू</h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {NOTICES.map((n, i) => (
+              <div key={i} style={{ ...card({ background: cardBg, border: `1px solid ${borderColor}` }), display: "flex", alignItems: "center", gap: "1rem" }}>
+                {n.urgent && <span style={{ background: "#fee2e2", color: "#dc2626", padding: "2px 8px", borderRadius: 6, fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>जरुरी</span>}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, color: textColor, fontSize: "0.95rem" }}>{n.title}</div>
+                  <div style={{ fontSize: "0.78rem", color: "#6B7FA3", marginTop: 2 }}>{n.date} • {n.category}</div>
+                </div>
+                <span style={badge(COLORS.blue)}>{n.category}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Quick Links */}
+        <div style={{ maxWidth: 960, margin: "0 auto", padding: "2.5rem 1.5rem" }}>
+          <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: textColor, marginBottom: "1.25rem" }}>⚡ द्रुत लिंकहरू</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "1rem" }}>
+            {[
+              { label: "🌐 राहदानी अनलाइन", url: "https://www.nepalpassport.gov.np", color: "#2457A4" },
+              { label: "📊 MeroShare (IPO)", url: "https://meroshare.cdsc.com.np", color: "#0f766e" },
+              { label: "💰 IRD (कर सेवा)", url: "https://www.ird.gov.np", color: "#b45309" },
+              { label: "🏢 OCR (व्यापार)", url: "https://www.ocr.gov.np", color: "#7c3aed" },
+              { label: "📋 लोकसेवा आयोग", url: "https://www.psc.gov.np", color: "#0369a1" },
+              { label: "🏦 NRB (नेपाल राष्ट्र बैंक)", url: "https://www.nrb.org.np", color: "#065f46" },
+            ].map((link, i) => (
+              <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
+                style={{ ...card({ background: cardBg, border: `2px solid ${link.color}22` }), textDecoration: "none", display: "block", color: link.color, fontWeight: 700, fontSize: "0.95rem" }}>
+                {link.label} ↗
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function ServicesPage() {
+    const [cat, setCat] = useState("सबै");
+    const cats = ["सबै", ...new Set(SERVICES.map(s => s.category))];
+    const shown = filteredServices.filter(s => cat === "सबै" || s.category === cat);
+    return (
+      <div style={{ padding: "1.5rem", animation: "fadeIn 0.4s ease" }}>
+        <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: textColor, marginBottom: "1rem" }}>🏛️ सरकारी सेवाहरू</h2>
+        <div style={{ position: "relative", marginBottom: "1rem" }}>
+          <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }}>🔍</span>
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="सेवा खोज्नुहोस्..."
+            style={{ width: "100%", padding: "0.75rem 1rem 0.75rem 2.5rem", borderRadius: 10, border: `1.5px solid ${borderColor}`, fontSize: "0.95rem", outline: "none", background: cardBg, color: textColor }} />
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
+          {cats.map(c => (
+            <button key={c} onClick={() => setCat(c)}
+              style={{ padding: "0.4rem 0.9rem", borderRadius: 20, border: "none", cursor: "pointer", fontWeight: 600, fontSize: "0.85rem", background: cat === c ? COLORS.blue : (dark ? "#1f3060" : "#eef2fb"), color: cat === c ? "white" : textColor }}>
+              {c}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "1rem" }}>
+          {shown.map(s => (
+            <div key={s.id} className="svc-card" onClick={() => setSelectedService(s)}
+              style={{ ...card({ background: cardBg, border: `1px solid ${borderColor}`, cursor: "pointer" }) }}>
+              <div style={{ fontSize: "2.2rem", marginBottom: "0.6rem" }}>{s.icon}</div>
+              <div style={{ fontWeight: 700, color: textColor, marginBottom: "0.3rem" }}>{s.title}</div>
+              <div style={{ fontSize: "0.82rem", color: "#6B7FA3", marginBottom: "0.6rem" }}>{s.desc}</div>
+              <span style={badge(COLORS.blueSoft)}>{s.category}</span>
+            </div>
+          ))}
+        </div>
+        {shown.length === 0 && <div style={{ textAlign: "center", color: "#6B7FA3", padding: "3rem" }}>खोजिएको सेवा फेला परेन।</div>}
+      </div>
+    );
+  }
+
+  function FinancePage() {
+    const [sel, setSel] = useState(null);
+    const content = {
+      "बैंक खाता": {
+        body: `नेपालमा विभिन्न प्रकारका बैंक खाताहरू उपलब्ध छन्:\n\n• बचत खाता (Savings Account): सामान्य नागरिकको लागि उपयुक्त। ब्याजदर लगभग ५-७%।\n• चल्ती खाता (Current Account): व्यापारीहरूको लागि। बारम्बार कारोबारको लागि।\n• मुद्दती खाता (Fixed Deposit): निश्चित समयको लागि। उच्च ब्याजदर (७-११%)।\n• आवर्ती खाता (Recurring Deposit): मासिक बचत गर्न।\n\nखाता खोल्न: नागरिकता/परिचयपत्र, फोटो, र न्यूनतम रकम लिएर नजिकको बैंक जानुहोस्।`,
+      },
+      "ऋण र EMI": {
+        body: `EMI (Equated Monthly Installment) = ऋणको मासिक किस्ता\n\nसूत्र: EMI = P × r × (1+r)^n / [(1+r)^n - 1]\nजहाँ: P = मूल रकम, r = मासिक ब्याजदर, n = किस्ताको संख्या\n\nउदाहरण: रु. ५ लाख, १२% वार्षिक, ५ वर्षको ऋण\nEMI ≈ रु. ११,१२५/- प्रति महिना\n\nऋण लिनु अघि: आफ्नो आम्दानी, खर्च, र भुक्तानी क्षमता जाँच्नुहोस्।`,
+      },
+    };
+    return (
+      <div style={{ padding: "1.5rem", animation: "fadeIn 0.4s ease" }}>
+        <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: textColor, marginBottom: "0.5rem" }}>💰 वित्तीय साक्षरता</h2>
+        <p style={{ color: "#6B7FA3", marginBottom: "1.5rem" }}>शुन्यबाट सुरु गर्नुहोस् — पैसा बुझ्नु र बचाउनु सिक्नुहोस्।</p>
+        {sel ? (
+          <div>
+            <button onClick={() => setSel(null)} style={{ ...btnStyle("#6B7FA3"), marginBottom: "1rem" }}>← फिर्ता</button>
+            <div style={card({ background: cardBg })}>
+              <h3 style={{ color: textColor, marginBottom: "1rem", fontSize: "1.2rem" }}>{sel.icon} {sel.title}</h3>
+              <pre style={{ whiteSpace: "pre-wrap", color: dark ? "#c8d8f8" : "#444", lineHeight: 1.8, fontFamily: "inherit", fontSize: "0.95rem" }}>{content[sel.title]?.body || sel.desc + "\n\nयस विषयको विस्तृत जानकारी छिट्टै थपिनेछ।"}</pre>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "1rem" }}>
+            {FINANCE_TOPICS.map(t => (
+              <div key={t.title} className="svc-card" onClick={() => setSel(t)}
+                style={{ ...card({ background: cardBg, border: `1px solid ${borderColor}`, cursor: "pointer", textAlign: "center" }) }}>
+                <div style={{ fontSize: "2.2rem", marginBottom: "0.6rem" }}>{t.icon}</div>
+                <div style={{ fontWeight: 700, color: textColor, marginBottom: "0.3rem" }}>{t.title}</div>
+                <div style={{ fontSize: "0.82rem", color: "#6B7FA3" }}>{t.desc}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function NepsePage() {
+    const [sel, setSel] = useState(null);
+    const content = {
+      "IPO": "IPO (Initial Public Offering) — सेयर किन्ने पहिलो कदम\n\n१. MeroShare खाता खोल्नुहोस् (meroshare.cdsc.com.np)\n२. Demat खाता अनिवार्य छ\n३. ASBA सुविधा भएको बैंक खाता चाहिन्छ\n४. IPO खुलेको बेला MeroShare मा लग इन गरी आवेदन दिनुहोस्\n५. आवंटन भएमा सेयर Demat खातामा आउँछ\n\n⚠️ IPO सधैं नाफा हुँदैन। जोखिम बुझेर लगानी गर्नुहोस्।",
+      "NEPSE के हो?": "NEPSE = Nepal Stock Exchange\n\nनेपालको एकमात्र स्टक एक्सचेञ्ज हो जहाँ कम्पनीहरूको सेयर किन्न-बेच्न सकिन्छ।\n\nकसरी काम गर्छ:\n• कम्पनीहरूले IPO मार्फत सार्वजनिक बजारमा आउँछन्\n• लगानीकर्ताहरू TMS (Trading Management System) मार्फत किन्छन् र बेच्छन्\n• NEPSE Index = बजारको समग्र प्रदर्शन सूचक\n\nसेयर बजार जोखिमयुक्त छ। पहिले राम्ररी बुझ्नुहोस्।",
+    };
+    return (
+      <div style={{ padding: "1.5rem", animation: "fadeIn 0.4s ease" }}>
+        <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: textColor, marginBottom: "0.5rem" }}>📈 सेयर बजार सिक्नुहोस्</h2>
+        <p style={{ color: "#6B7FA3", marginBottom: "1rem" }}>NEPSE, IPO, Demat देखि लगानीसम्म — सबै सरल भाषामा।</p>
+        <div style={{ background: dark ? "#0d1a33" : COLORS.navy, borderRadius: 12, padding: "0.75rem 1.25rem", marginBottom: "1.5rem", overflow: "hidden" }}>
+          <div style={{ display: "flex", gap: "2rem", color: "white", fontSize: "0.9rem", flexWrap: "wrap" }}>
+            <span>NEPSE Index: <strong style={{ color: COLORS.saffronLight }}>२,४३५.२१</strong> <span style={{ color: "#4ade80" }}>▲ +१२.५</span></span>
+            <span>कारोबार रकम: <strong style={{ color: COLORS.saffronLight }}>रु. ५.२ अर्ब</strong></span>
+            <span style={{ fontSize: "0.75rem", color: "#c8d8f8" }}>⚠️ यो वास्तविक डेटा होइन — नमूना मात्र</span>
+          </div>
+        </div>
+        {sel ? (
+          <div>
+            <button onClick={() => setSel(null)} style={{ ...btnStyle("#6B7FA3"), marginBottom: "1rem" }}>← फिर्ता</button>
+            <div style={card({ background: cardBg })}>
+              <h3 style={{ color: textColor, marginBottom: "1rem" }}>{sel.icon} {sel.title}</h3>
+              <pre style={{ whiteSpace: "pre-wrap", color: dark ? "#c8d8f8" : "#444", lineHeight: 1.8, fontFamily: "inherit" }}>{content[sel.title] || sel.desc + "\n\nयस विषयको विस्तृत जानकारी छिट्टै थपिनेछ।"}</pre>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "1rem" }}>
+            {NEPSE_TOPICS.map(t => (
+              <div key={t.title} className="svc-card" onClick={() => setSel(t)}
+                style={{ ...card({ background: cardBg, border: `1px solid ${borderColor}`, cursor: "pointer" }) }}>
+                <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>{t.icon}</div>
+                <div style={{ fontWeight: 700, color: textColor, marginBottom: "0.25rem" }}>{t.title}</div>
+                <div style={{ fontSize: "0.82rem", color: "#6B7FA3" }}>{t.desc}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function FormsPage() {
+    const cats = ["सबै", ...new Set(FORMS.map(f => f.category))];
+    return (
+      <div style={{ padding: "1.5rem", animation: "fadeIn 0.4s ease" }}>
+        <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: textColor, marginBottom: "1rem" }}>📋 सरकारी फारमहरू</h2>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
+          {cats.map(c => (
+            <button key={c} onClick={() => setFormFilter(c)}
+              style={{ padding: "0.4rem 0.9rem", borderRadius: 20, border: "none", cursor: "pointer", fontWeight: 600, fontSize: "0.85rem", background: formFilter === c ? COLORS.blue : (dark ? "#1f3060" : "#eef2fb"), color: formFilter === c ? "white" : textColor }}>
+              {c}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          {filteredForms.map(f => (
+            <div key={f.id} className="form-card" style={{ ...card({ background: cardBg, border: `1px solid ${borderColor}`, display: "flex", alignItems: "center", gap: "1rem" }) }}>
+              <div style={{ fontSize: "2rem" }}>📄</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, color: textColor }}>{f.title}</div>
+                <div style={{ fontSize: "0.82rem", color: "#6B7FA3" }}>{f.desc}</div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", alignItems: "flex-end" }}>
+                <span style={badge(COLORS.blue)}>{f.category}</span>
+                {f.link !== "#" ? (
+                  <a href={f.link} target="_blank" rel="noopener noreferrer" style={{ ...btnStyle(COLORS.blue), fontSize: "0.8rem", textDecoration: "none" }}>डाउनलोड ↗</a>
+                ) : (
+                  <span style={{ ...btnStyle("#9ca3af"), fontSize: "0.8rem" }}>छिट्टै आउँदैछ</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ ...card({ background: dark ? "#111e38" : "#fffbeb", border: "1px solid #fbbf24", marginTop: "1.5rem" }) }}>
+          <p style={{ color: "#92400e", fontSize: "0.88rem", lineHeight: 1.6 }}>
+            ⚠️ <strong>महत्त्वपूर्ण सूचना:</strong> फारमहरू नियमित रूपमा परिवर्तन हुन सक्छन्। सरकारी कार्यालयमा जाँदा अद्यावधिक फारम लिनुहोस् वा आधिकारिक वेबसाइटबाट डाउनलोड गर्नुहोस्। यहाँका लिंकहरू सन्दर्भको लागि मात्र हुन्।
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  function DirectoryPage() {
+    return (
+      <div style={{ padding: "1.5rem", animation: "fadeIn 0.4s ease" }}>
+        <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: textColor, marginBottom: "1rem" }}>🗂️ सरकारी कार्यालय निर्देशिका</h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          {OFFICES.map((o, i) => (
+            <div key={i} style={card({ background: cardBg, border: `1px solid ${borderColor}` })}>
+              <h3 style={{ color: COLORS.blue, fontSize: "1rem", fontWeight: 700, marginBottom: "0.75rem" }}>🏛️ {o.name}</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "0.5rem", fontSize: "0.88rem" }}>
+                <div><span style={{ color: "#6B7FA3" }}>📍 ठेगाना:</span> <span style={{ color: textColor }}>{o.address}</span></div>
+                <div><span style={{ color: "#6B7FA3" }}>📞 फोन:</span> <a href={`tel:${o.phone}`} style={{ color: COLORS.blue, textDecoration: "none", fontWeight: 600 }}>{o.phone}</a></div>
+                <div><span style={{ color: "#6B7FA3" }}>⏰ समय:</span> <span style={{ color: textColor }}>{o.hours}</span></div>
+              </div>
+              <div style={{ marginTop: "0.6rem", fontSize: "0.85rem" }}>
+                <span style={{ color: "#6B7FA3" }}>🛎️ सेवाहरू:</span> <span style={{ color: textColor }}>{o.services}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ ...card({ background: dark ? "#111e38" : "#f0fdf4", border: "1px solid #86efac", marginTop: "1.5rem" }) }}>
+          <p style={{ color: "#166534", fontSize: "0.88rem" }}>
+            ⚠️ कार्यालयको समय, फोन नम्बर, र ठेगाना परिवर्तन हुन सक्छ। जाँदा अगाडि सम्पर्क गर्नुहोस्।
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  function EmergencyPage() {
+    return (
+      <div style={{ padding: "1.5rem", animation: "fadeIn 0.4s ease" }}>
+        <div style={{ background: "linear-gradient(135deg,#dc2626,#991b1b)", borderRadius: 16, padding: "1.5rem", color: "white", marginBottom: "1.5rem", textAlign: "center" }}>
+          <div style={{ fontSize: "3rem", marginBottom: "0.5rem" }}>🚨</div>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: "0.5rem" }}>आपातकालीन नम्बरहरू</h2>
+          <p style={{ opacity: 0.85 }}>तत्काल सम्पर्कको लागि — नम्बरमा थिच्नुहोस्</p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "1rem", marginBottom: "2rem" }}>
+          {EMERGENCY.map(e => (
+            <a key={e.number} href={`tel:${e.number}`} style={{ textDecoration: "none" }}>
+              <div className="svc-card" style={{ ...card({ background: cardBg, border: `2px solid ${e.color}33`, textAlign: "center" }), cursor: "pointer" }}>
+                <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>{e.icon}</div>
+                <div style={{ fontWeight: 800, fontSize: "1.8rem", color: e.color, marginBottom: "0.25rem" }}>{e.number}</div>
+                <div style={{ fontWeight: 600, color: textColor }}>{e.label}</div>
+                <div style={{ fontSize: "0.78rem", color: "#6B7FA3", marginTop: 4 }}>थिच्नुहोस् / Call</div>
+              </div>
+            </a>
+          ))}
+        </div>
+        <div style={card({ background: cardBg, marginBottom: "1rem" })}>
+          <h3 style={{ ...sectionTitle(), color: textColor }}>🏥 प्रमुख अस्पतालहरू (काठमाडौं)</h3>
+          {[
+            { name: "वीर अस्पताल", phone: "01-4221119" },
+            { name: "पाटन अस्पताल", phone: "01-5521048" },
+            { name: "ग्राण्डी इन्टरनेशनल अस्पताल", phone: "01-4488000" },
+            { name: "नर्भिक इन्टरनेशनल अस्पताल", phone: "01-4258554" },
+          ].map((h, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0", borderBottom: i < 3 ? `1px solid ${borderColor}` : "none" }}>
+              <span style={{ color: textColor, fontWeight: 500 }}>🏥 {h.name}</span>
+              <a href={`tel:${h.phone}`} style={{ color: COLORS.blue, fontWeight: 700, textDecoration: "none" }}>{h.phone}</a>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function EducationPage() {
+    return (
+      <div style={{ padding: "1.5rem", animation: "fadeIn 0.4s ease" }}>
+        <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: textColor, marginBottom: "0.5rem" }}>🎓 शिक्षा जानकारी</h2>
+        <p style={{ color: "#6B7FA3", marginBottom: "1.5rem" }}>SEE देखि विदेश अध्ययनसम्म — सम्पूर्ण मार्गदर्शन।</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "1rem" }}>
+          {EDUCATION_TOPICS.map(t => (
+            <div key={t.title} className="svc-card"
+              style={{ ...card({ background: cardBg, border: `1px solid ${borderColor}`, cursor: "pointer", textAlign: "center" }) }}
+              onClick={() => showToast("छिट्टै उपलब्ध हुनेछ!")}>
+              <div style={{ fontSize: "2.2rem", marginBottom: "0.6rem" }}>{t.icon}</div>
+              <div style={{ fontWeight: 700, color: textColor, marginBottom: "0.25rem" }}>{t.title}</div>
+              <div style={{ fontSize: "0.82rem", color: "#6B7FA3" }}>{t.desc}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ ...card({ background: dark ? "#111e38" : "#eff6ff", border: "1px solid #bfdbfe", marginTop: "1.5rem" }) }}>
+          <h3 style={{ color: COLORS.blue, marginBottom: "0.75rem" }}>🔗 महत्त्वपूर्ण शैक्षिक लिंकहरू</h3>
+          {[
+            { name: "NEB (राष्ट्रिय परीक्षा बोर्ड)", url: "https://www.neb.gov.np" },
+            { name: "त्रिभुवन विश्वविद्यालय", url: "https://www.tribhuvan-university.edu.np" },
+            { name: "काठमाडौं विश्वविद्यालय", url: "https://www.ku.edu.np" },
+            { name: "शिक्षा मन्त्रालय", url: "https://moest.gov.np" },
+          ].map((l, i) => (
+            <div key={i} style={{ marginBottom: "0.5rem" }}>
+              <a href={l.url} target="_blank" rel="noopener noreferrer" style={{ color: COLORS.blue, textDecoration: "none", fontWeight: 600 }}>→ {l.name} ↗</a>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Main Layout ──────────────────────────────────────────────────────────
+  return (
+    <div style={{ minHeight: "100vh", background: bg, fontFamily: "'Inter', sans-serif", color: textColor, transition: "background 0.3s" }}>
+      {toast && (
+        <div style={{ position: "fixed", top: 20, right: 20, background: COLORS.navy, color: "white", padding: "0.8rem 1.5rem", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.3)", zIndex: 9999, animation: "slideIn 0.3s ease" }}>
+          ✅ {toast}
+        </div>
+      )}
+
+      <header style={{ position: "sticky", top: 0, zIndex: 100, background: dark ? "rgba(10,22,40,0.95)" : "rgba(248,250,255,0.95)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${borderColor}`, padding: "0.75rem 1.5rem" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={() => navTo("home")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.6rem" }}>
+            <span style={{ fontSize: "1.5rem" }}>🇳🇵</span>
+            <div style={{ textAlign: "left" }}>
+              <div style={{ fontWeight: 800, fontSize: "1rem", color: dark ? "#e8f0ff" : COLORS.navy, lineHeight: 1 }}>नेपाल नागरिक साथी</div>
+              <div style={{ fontSize: "0.65rem", color: "#6B7FA3", letterSpacing: "0.05em" }}>NEPAL NAGARIK SATHI</div>
+            </div>
+          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <button onClick={() => setDark(d => !d)}
+              style={{ background: dark ? "#1f3060" : "#eef2fb", border: "none", borderRadius: 8, padding: "0.4rem 0.7rem", cursor: "pointer", fontSize: "1rem" }}>
+              {dark ? "☀️" : "🌙"}
+            </button>
+            <button onClick={() => setMobileMenu(m => !m)}
+              style={{ background: COLORS.blue, border: "none", borderRadius: 8, padding: "0.4rem 0.75rem", cursor: "pointer", color: "white", fontSize: "1.1rem" }}>
+              {mobileMenu ? "✕" : "☰"}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {mobileMenu && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 99, background: "rgba(0,0,0,0.5)" }} onClick={() => setMobileMenu(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: 60, right: 0, width: "min(300px, 85vw)", background: dark ? "#0d1a33" : "white", borderLeft: `1px solid ${borderColor}`, height: "calc(100vh - 60px)", padding: "1rem", overflowY: "auto" }}>
+            {NAV_ITEMS.map(n => (
+              <button key={n.id} onClick={() => navTo(n.id)}
+                className="nav-btn"
+                style={{ display: "flex", alignItems: "center", gap: "0.75rem", width: "100%", padding: "0.85rem 1rem", border: "none", background: page === n.id ? `${COLORS.blue}18` : "transparent", borderRadius: 10, cursor: "pointer", color: page === n.id ? COLORS.blue : textColor, fontWeight: page === n.id ? 700 : 500, fontSize: "0.95rem", marginBottom: "0.25rem" }}>
+                <span style={{ fontSize: "1.2rem" }}>{n.icon}</span> {n.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 90, background: dark ? "rgba(10,22,40,0.97)" : "rgba(248,250,255,0.97)", backdropFilter: "blur(12px)", borderTop: `1px solid ${borderColor}`, display: "flex", overflowX: "auto", padding: "0.3rem 0" }}>
+        {NAV_ITEMS.map(n => (
+          <button key={n.id} onClick={() => navTo(n.id)}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", minWidth: 60, padding: "0.3rem 0.4rem", border: "none", background: "transparent", cursor: "pointer", color: page === n.id ? COLORS.blue : "#6B7FA3", fontWeight: page === n.id ? 700 : 400, fontSize: "0.6rem", transition: "color 0.2s" }}>
+            <span style={{ fontSize: "1.25rem" }}>{n.icon}</span>
+            <span style={{ whiteSpace: "nowrap" }}>{n.label.split(" ")[0]}</span>
+          </button>
+        ))}
+      </nav>
+
+      <main style={{ maxWidth: 1100, margin: "0 auto", paddingBottom: 100 }}>
+        {renderPage()}
+      </main>
+
+      <footer style={{ background: dark ? "#060e1f" : COLORS.navy, color: "#c8d8f8", padding: "2rem 1.5rem", textAlign: "center", paddingBottom: "6rem" }}>
+        <div style={{ maxWidth: 960, margin: "0 auto" }}>
+          <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>🇳🇵</div>
+          <div style={{ fontWeight: 800, fontSize: "1.1rem", marginBottom: "0.5rem", color: "white" }}>नेपाल नागरिक साथी</div>
+          <p style={{ fontSize: "0.85rem", opacity: 0.7, maxWidth: 500, margin: "0 auto 1rem" }}>
+            यो वेबसाइट नागरिक जानकारीको लागि मात्र हो। सबै शुल्क, प्रक्रिया, र कागजातहरू आधिकारिक स्रोतबाट प्रमाणित गर्नुहोस्।
+          </p>
+          <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap", fontSize: "0.85rem", opacity: 0.7 }}>
+            <span>© २०८१ नेपाल नागरिक साथी</span>
+            <span>•</span>
+            <span>जानकारी नमूना मात्र — आधिकारिक स्रोत जाँच्नुहोस्</span>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<NepalNagarikSathi />);
+</script>
+
+<script>
+  (function () {
+    function showError(title, err) {
+      var root = document.getElementById('root');
+      var msg = (err && (err.message || err.toString())) || 'Unknown error';
+      var stack = (err && err.stack) ? '\n\n' + err.stack : '';
+      root.innerHTML = '<div style="font-family:monospace;white-space:pre-wrap;padding:2rem;color:#991b1b;background:#fee2e2;line-height:1.5;">'
+        + '⚠️ ' + title + '\n\n' + msg + stack + '</div>';
+      console.error(title, err);
+    }
+    try {
+      if (typeof Babel === 'undefined') {
+        throw new Error('Babel did not load (CDN script blocked or failed).');
+      }
+      if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
+        throw new Error('React/ReactDOM did not load (CDN script blocked or failed).');
+      }
+      var source = document.getElementById('app-source').textContent;
+      var output;
+      try {
+        output = Babel.transform(source, { presets: ['react'] }).code;
+      } catch (transformErr) {
+        showError('JSX/Babel transform error:', transformErr);
+        return;
+      }
+      var script = document.createElement('script');
+      script.textContent = output;
+      script.onerror = function (e) { showError('Script execution error:', e); };
+      document.body.appendChild(script);
+    } catch (err) {
+      showError('Startup error:', err);
+    }
+  })();
+</script>
+</body>
+</html>
